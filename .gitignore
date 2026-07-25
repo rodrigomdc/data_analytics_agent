@@ -1,0 +1,25 @@
+# Ambientes Virtuais e Configurações de IDEs
+.venv/
+venv/
+.vscode/
+.idea/
+
+# Arquivos de Cache e Pré-Compilação do Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Variáveis de Ambiente, Credenciais e Chaves de API
+.env
+
+# Banco de Dados DuckDB (Ignora a base e todos os arquivos de logs transacionais .wal)
+*.duckdb*
+database/*
+!database/.gitkeep
+
+# Diretórios Temporários de Trabalho (Ignora qualquer arquivo carregado ou extraído)
+uploads/*
+!uploads/.gitkeep
+
+extracted/*
+!extracted/.gitkeep
