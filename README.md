@@ -121,85 +121,85 @@ data-analyst-agent/
 
 Este tópico descreve detalhadamente o papel de cada pasta e arquivo do repositório, demonstrando como eles se integram de forma complementar para construir o fluxo de análise inteligente:
 
-1. **Diretórios de Armazenamento e Estado (Raiz do Projeto)**
+1\. **Diretórios de Armazenamento e Estado (Raiz do Projeto)**
 
 Estas pastas residem na raiz do projeto e gerenciam a persistência e o isolamento físico de arquivos durante a execução:
 
-*   `database/`: Armazena o arquivo de banco de dados físico ativo do DuckDB (`data.duckdb`). Como o banco é persistido localmente e não apenas em memória, essa pasta permite a carga cumulativa de múltiplos uploads ao longo de uma sessão.
+*   **`database/`**: Armazena o arquivo de banco de dados físico ativo do DuckDB (`data.duckdb`). Como o banco é persistido localmente e não apenas em memória, essa pasta permite a carga cumulativa de múltiplos uploads ao longo de uma sessão.
 
-*   `uploads/`: Funciona como diretório de retenção temporária do arquivo compactado `payload.zip` enviado ativamente pelo usuário.
+*   **`uploads/`**: Funciona como diretório de retenção temporária do arquivo compactado `payload.zip` enviado ativamente pelo usuário.
 
-*   `extracted/`: Diretório de rascunho de disco. É o local físico onde os arquivos CSV e dicionários de dados são descompactados pelo sistema para sofrerem os processos de validação e leitura estruturada antes de serem inseridos no banco de dados.
+*   **`extracted/`**: Diretório de rascunho de disco. É o local físico onde os arquivos CSV e dicionários de dados são descompactados pelo sistema para sofrerem os processos de validação e leitura estruturada antes de serem inseridos no banco de dados.
 
-2. **Pacote Principal do Código-Fonte (`src/`)**
+2\. **Pacote Principal do Código-Fonte (`src/`)**
 
-👤 `src/agents/` **(Camada Cognitiva)**
+👤 **`src/agents/`** **(Camada Cognitiva)**
 
 Responsável pelas decisões lógicas baseadas em IA que dependem das chamadas de API do Gemini.
 
-* `agents_nodes.py`: Contém a classe GraphNodes. Centraliza os métodos de instância dos nós do grafo (`supervisor_node`, `analyst_node`, `chart_node`, `synthesis_node`). Cada nó possui uma persona própria de IA e regras específicas de processamento que lêem o estado do grafo e o atualizam.
+* **`agents_nodes.py`**: Contém a classe GraphNodes. Centraliza os métodos de instância dos nós do grafo (`supervisor_node`, `analyst_node`, `chart_node`, `synthesis_node`). Cada nó possui uma persona própria de IA e regras específicas de processamento que lêem o estado do grafo e o atualizam.
 
-🖥️ `src/app/` **(Camada de Apresentação / View)**
+🖥️ **`src/app/`** **(Camada de Apresentação / View)**
 
 Gerencia a interface gráfica interativa do usuário.
 
-* `app.py`: Contém a classe principal StreamlitApp. Ela renderiza o cabeçalho, a barra lateral de uploads cumulativos (Interface A) e a interface de chat de consultas (Interface B). É o único arquivo que interage com o Streamlit, consumindo os dicionários de dados gerados pelos serviços e os estados finais entregues pelo Orquestrador do Grafo.
+* **`app.py`**: Contém a classe principal StreamlitApp. Ela renderiza o cabeçalho, a barra lateral de uploads cumulativos (Interface A) e a interface de chat de consultas (Interface B). É o único arquivo que interage com o Streamlit, consumindo os dicionários de dados gerados pelos serviços e os estados finais entregues pelo Orquestrador do Grafo.
 
-🗄️ `src/db_manager/` **(Infraestrutura de Banco de Dados)**
+🗄️ **`src/db_manager/`** **(Infraestrutura de Banco de Dados)**
 
 Camada isolada responsável por gerenciar a comunicação de leitura/escrita física.
 
-* `duckdb_manager.py`: Contém a classe `DuckDBManager`. Estabelece conexões com o arquivo do DuckDB, executa queries SQL analíticas e lê os metadados do banco (`PRAGMA table_info`) para fornecer a estrutura exata do banco de dados (schema) para os agentes.
+* **`duckdb_manager.py`**: Contém a classe `DuckDBManager`. Estabelece conexões com o arquivo do DuckDB, executa queries SQL analíticas e lê os metadados do banco (`PRAGMA table_info`) para fornecer a estrutura exata do banco de dados (schema) para os agentes.
 
-🕸️ `src/graph/` **(Orquestração e Topologia)**
+🕸️ **`src/graph/`** **(Orquestração e Topologia)**
 
 Responsável por montar o grafo e definir o fluxo lógico da informação.
 
-* `builder.py`: Contém a classe WorkflowGraphBuilder. Define os nós do grafo utilizando os métodos de instância de `GraphNodes`, conecta as arestas lógicas sequenciais e define as arestas condicionais (routers), compilando a topologia final do grafo de estados de forma robusta.
+* **`builder.py`**: Contém a classe WorkflowGraphBuilder. Define os nós do grafo utilizando os métodos de instância de `GraphNodes`, conecta as arestas lógicas sequenciais e define as arestas condicionais (routers), compilando a topologia final do grafo de estados de forma robusta.
 
-* `orchestrator.py`: É o ponto de entrada da lógica de inteligência artificial. Contém a função `run_orchestrator_graph()`, que recebe as perguntas do usuário, realiza a validação semântica de segurança, monta o estado inicial de dados (`AgentState`) e dispara a execução do grafo de forma síncrona, retornando os resultados finais.
+* **`orchestrator.py`**: É o ponto de entrada da lógica de inteligência artificial. Contém a função `run_orchestrator_graph()`, que recebe as perguntas do usuário, realiza a validação semântica de segurança, monta o estado inicial de dados (`AgentState`) e dispara a execução do grafo de forma síncrona, retornando os resultados finais.
 
-💾 `src/memory/` **(Gerenciador de Estado do Chat)**
+💾 **`src/memory/`** **(Gerenciador de Estado do Chat)**
 
-* `conversation.py`: Classe `ConversationMemory`. Gerencia e persiste a lista de mensagens trocadas no chat do Streamlit. Salva de forma estruturada as explicações do assistente associando-as às suas tabelas e gráficos específicos correspondentes para que o histórico seja redesenhado corretamente na tela.
+* **`conversation.py`**: Classe `ConversationMemory`. Gerencia e persiste a lista de mensagens trocadas no chat do Streamlit. Salva de forma estruturada as explicações do assistente associando-as às suas tabelas e gráficos específicos correspondentes para que o histórico seja redesenhado corretamente na tela.
 
-📊 `src/models/` **(Modelos e Contratos de Dados)**
+📊 **`src/models/`** **(Modelos e Contratos de Dados)**
 
-* `state_model.py`: Define a classe `AgentState` baseada em `TypedDict`. Esse modelo é o contrato de dados oficial do sistema. Ele define de forma rígida quais variáveis (query do usuário, schema do banco, queries SQL, DataFrames Pandas, figuras do Plotly, explicações de negócios e logs de auditoria) trafegam de nó em nó ao longo do processamento do grafo.
+* **`state_model.py`**: Define a classe `AgentState` baseada em `TypedDict`. Esse modelo é o contrato de dados oficial do sistema. Ele define de forma rígida quais variáveis (query do usuário, schema do banco, queries SQL, DataFrames Pandas, figuras do Plotly, explicações de negócios e logs de auditoria) trafegam de nó em nó ao longo do processamento do grafo.
 
-📝 `src/prompts/` **(Central de Instruções de IA)**
+📝 **`src/prompts/`** **(Central de Instruções de IA)**
 
-* `prompts.py`: Isola todos os templates de instruções textuais dos agentes de IA do código Python lógico do sistema. Armazena as diretrizes e regras rígidas aplicadas ao Supervisor (incluindo a proibição absoluta de fazer cálculos manuais), o prompt do analista SQL, o do criador de gráficos e a síntese final do analista de negócios.
+* **`prompts.py`**: Isola todos os templates de instruções textuais dos agentes de IA do código Python lógico do sistema. Armazena as diretrizes e regras rígidas aplicadas ao Supervisor (incluindo a proibição absoluta de fazer cálculos manuais), o prompt do analista SQL, o do criador de gráficos e a síntese final do analista de negócios.
 
-⚙️ `src/services/` **(Serviços Determinísticos)**
+⚙️ **`src/services/`** **(Serviços Determinísticos)**
 
 Camada de serviços clássicos de programação que não necessitam de IA cognitiva para operar.
 
-* `zip_service.py`: Descompacta o arquivo payload.zip extraindo fisicamente os arquivos de dados na pasta `extracted/`.
+* **`zip_service.py`**: Descompacta o arquivo payload.zip extraindo fisicamente os arquivos de dados na pasta `extracted/`.
 
-* `csv_service.py`: Contém a lógica de tratamento de dados analíticos. Utiliza a função de varredura `_detect_csv_properties` para descobrir estatisticamente o separador e o encoding corretos do arquivo usando o `csv.Sniffer` nativo. Em seguida, lê os arquivos com Pandas (corrigindo formatações decimais brasileiras de vírgulas para pontos com decimal=",") e os grava nas tabelas físicas do DuckDB em memória sem perdas de decodificação.
+* **`csv_service.py`**: Contém a lógica de tratamento de dados analíticos. Utiliza a função de varredura `_detect_csv_properties` para descobrir estatisticamente o separador e o encoding corretos do arquivo usando o `csv.Sniffer` nativo. Em seguida, lê os arquivos com Pandas (corrigindo formatações decimais brasileiras de vírgulas para pontos com decimal=",") e os grava nas tabelas físicas do DuckDB em memória sem perdas de decodificação.
 
-* `data_dict_service.py`: Processa de forma determinística dicionários de dados salvos no formato CSV utilizando o `csv.DictReader`. Higieniza espaços em branco e extrai as N colunas extras de metadados para construir o dicionário de suporte do sistema.
+* **`data_dict_service.py`**: Processa de forma determinística dicionários de dados salvos no formato CSV utilizando o `csv.DictReader`. Higieniza espaços em branco e extrai as N colunas extras de metadados para construir o dicionário de suporte do sistema.
 
-* `ingestion_service.py`: Classe coordenadora do pipeline de ETL (Extração, Transformação e Carga). Aciona em lote os serviços de descompactação, parser de dicionário e gravação das tabelas no DuckDB.
+* **`ingestion_service.py`**: Classe coordenadora do pipeline de ETL (Extração, Transformação e Carga). Aciona em lote os serviços de descompactação, parser de dicionário e gravação das tabelas no DuckDB.
 
-🧰 `src/tools/` **(Ações Práticas dos Agentes)**
+🧰 **`src/tools/`** **(Ações Práticas dos Agentes)**
 
-* `tools.py`: Biblioteca de ferramentas acionadas pelos nós do LangGraph. Contém a ferramenta de execução de queries SQL no DuckDB e o montador de gráficos interativos em Plotly Express (`create_chart_tool`), que padroniza os títulos e eixos com base nas melhores práticas de Data Viz.
+* **`tools.py`**: Biblioteca de ferramentas acionadas pelos nós do LangGraph. Contém a ferramenta de execução de queries SQL no DuckDB e o montador de gráficos interativos em Plotly Express (`create_chart_tool`), que padroniza os títulos e eixos com base nas melhores práticas de Data Viz.
 
-🛠️ `src/utils/` **(Utilitários Globais do Sistema)**
+🛠️ **`src/utils/`** **(Utilitários Globais do Sistema)**
 
-* `utils.py`: Arquivo unificado que centraliza de forma limpa as funções utilitárias que atendem a várias camadas do sistema:
+* **`utils.py`**: Arquivo unificado que centraliza de forma limpa as funções utilitárias que atendem a várias camadas do sistema:
 
-    1. `setup_logger`: Configura e padroniza o monitoramento de logs do console do servidor.
+    1. **`setup_logger`**: Configura e padroniza o monitoramento de logs do console do servidor.
 
-    2. `sanitize_table_name`: Higieniza nomes físicos de arquivos para chaves de tabelas compatíveis com SQL.
+    2. **`sanitize_table_name`**: Higieniza nomes físicos de arquivos para chaves de tabelas compatíveis com SQL.
 
-    3. `sanitize_column_name`: Normaliza e converte nomes de colunas complexas de arquivos CSV em identificadores amigáveis no padrão snake_case em ASCII puro.
+    3. **`sanitize_column_name`**: Normaliza e converte nomes de colunas complexas de arquivos CSV em identificadores amigáveis no padrão snake_case em ASCII puro.
 
-    4. `validate_user_query`: Executa o algoritmo de validação determinística de perguntas com base em vocabulário dinâmico.
+    4. **`validate_user_query`**: Executa o algoritmo de validação determinística de perguntas com base em vocabulário dinâmico.
 
-    5. `reset_application_storage`: Realiza a exclusão e o expurgo físico de segurança de arquivos e bancos temporários do disco.
+    5. **`reset_application_storage`**: Realiza a exclusão e o expurgo físico de segurança de arquivos e bancos temporários do disco.
 
 ---
 
