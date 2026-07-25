@@ -82,7 +82,7 @@ class CSVService:
 
                     try:
                         df_completo = pd.read_csv(
-                            path, sep=sep, encoding=encoding, decimal=",", on_bad_lines="skip")
+                            path, sep=sep, encoding=encoding,decimal=",", on_bad_lines="skip")
 
                         # Higienização de colunas
                         df_completo.columns = [sanitize_column_name(
