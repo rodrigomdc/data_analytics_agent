@@ -8,6 +8,10 @@ EXTRACTED_DIR = os.path.join(BASE_DIR, "extracted")
 DB_DIR = os.path.join(BASE_DIR, "database")
 DB_PATH = os.path.join(DB_DIR, "data.duckdb")
 
+os.makedirs(EXTRACTED_DIR, exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+os.makedirs(DB_DIR, exist_ok=True)
+
 load_dotenv()
 
 # Chave de API Google Gemini
