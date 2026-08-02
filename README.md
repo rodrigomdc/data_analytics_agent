@@ -173,7 +173,7 @@ Responsável por montar o grafo e definir o fluxo lógico da informação.
 
 ⚙️ **`src/services/`** **(Serviços Determinísticos)**
 
-Camada de serviços clássicos de programação que não necessitam de IA cognitiva para operar.
+Camada de serviços clássicos de programação que **não** necessitam de IA cognitiva para operar.
 
 * **`zip_service.py`**: Descompacta o arquivo payload.zip extraindo fisicamente os arquivos de dados na pasta `extracted/`.
 
@@ -225,7 +225,7 @@ O componente de upload de arquivos (`file\_uploader`) funciona como uma "zona de
 
 ### 2\. Tratamento de Encodings e Delimitadores Nacionais
 
-Para contornar as limitações do leitor padrão de CSV do DuckDB (que falha ao ler arquivos não-UTF-8 ou com delimitadores ;), a ingestão foi reescrita utilizando o **Pandas como ponte de memória**.O sistema executa uma varredura utilizando o **csv.Sniffer nativo do Python** para descobrir estatisticamente o separador e o encoding corretos. Em seguida, o Pandas lê o arquivo físico e o registra na memória do DuckDB utilizando o mecanismo **Zero-Copy (`conn.register`)**, o que garante uma carga instantânea e 100% imune a falhas de decodificação.
+Para contornar as limitações do leitor padrão de CSV do DuckDB (que falha ao ler arquivos não-UTF-8 ou com delimitadores ;), a ingestão foi reescrita utilizando o **Pandas como ponte de memória**. O sistema executa uma varredura utilizando o **csv.Sniffer nativo do Python** para descobrir estatisticamente o separador e o encoding corretos. Em seguida, o Pandas lê o arquivo físico e o registra na memória do DuckDB utilizando o mecanismo **Zero-Copy (`conn.register`)**, o que garante uma carga instantânea e 100% imune a falhas de decodificação.
 
 ### 3\. Sanitização Radical de Cabeçalhos contra Espaços Ocultos e Unicode Normalization (NFC/NFD)
 
