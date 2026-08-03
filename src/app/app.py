@@ -9,7 +9,6 @@ comunicando-se diretamente com as camadas de serviços e do grafo de estados.
 import os
 import pandas as pd
 import streamlit as st
-from tabulate import tabulate
 from config import UPLOADS_DIR
 from src.utils.utils import reset_application_storage
 from src.services.ingestion_service import DataIngestionService
@@ -62,6 +61,15 @@ class StreamlitApp:
         if "uploader_key" not in st.session_state:
             st.session_state.uploader_key = 0
 
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        if "temp_charts" not in st.session_state:
+            st.session_state.temp_charts = []
+        
+        if "last_dataframe" not in st.session_state:
+            st.session_state.last_dataframe = None
+
     def render_header(self):
         """Renderiza o cabeçalho principal da página do painel web."""
         st.title("Interface Inteligente de Consulta e Visualização")
@@ -113,7 +121,9 @@ class StreamlitApp:
                         st.session_state.loaded_tables.update(new_tables)
 
                         # Atualiza os estados lógicos de persistência da sessão
-                        st.session_state.db_ready = True
+                        if len(st.session_state.loaded_tables) > 0:
+                            st.session_state.db_ready = True
+                            
                         st.session_state.loaded_zip_names.add(uploaded_zip.name)
                         
                         # Atualiza o status visual do processo para o usuário
@@ -189,7 +199,7 @@ class StreamlitApp:
             if isinstance(data_dict, dict) and len(data_dict) > 0 and "mensagem" not in data_dict and "erro" not in data_dict:
                 try:
                     table_rows = []
-                    # Planifica o dicionário aninhado em uma lista bidimensional para o tabulate
+                    # Planifica o dicionário aninhado em uma lista bidimensional
                     for table_name, columns in data_dict.items():
                         for col_name, description in columns.items():
                             # Se for o formato dinâmico (dict de N variáveis), busca a descrição funcional
@@ -199,16 +209,12 @@ class StreamlitApp:
                                 desc_text = str(description)
                             table_rows.append([table_name, col_name, desc_text])
 
-                    # Gera e plota a tabela markdown no estilo pipe (HTML nativo no Streamlit)
-                    table_markdown = tabulate(
-                        table_rows, 
-                        headers=["Tabela", "Coluna", "Descrição"], 
-                        tablefmt="pipe", 
-                        showindex=False
-                    )
-                    st.markdown(table_markdown)
+                    # Gera o DataFrame nativo e plota usando o Streamlit
+                    df_metadata = pd.DataFrame(table_rows, columns=["Tabela", "Coluna", "Descrição"])
+                    st.dataframe(df_metadata, use_container_width=True, hide_index=True)
                 except Exception as e:
                     st.text(str(data_dict))
+
             else:
                 # Tratamento de fallbacks e avisos amigáveis caso não haja dicionário válido
                 if isinstance(data_dict, dict) and "mensagem" in data_dict:
@@ -263,6 +269,7 @@ class StreamlitApp:
 
                                     if info.get("erro_processamento"):
                                         st.warning("Não foi possível processar esta coluna automaticamente.")
+
                                     elif tipo == "numerica":
                                         st.write("Estatísticas descritivas:")
                                         stats_df = pd.DataFrame(
@@ -270,6 +277,18 @@ class StreamlitApp:
                                             columns=["Métrica", "Valor"]
                                         )
                                         st.dataframe(stats_df, use_container_width=True, hide_index=True)
+
+                                    elif tipo == "monetaria":
+                                        st.write("Estatísticas de valor:")
+                                        money_df = pd.DataFrame([
+                                            {"Métrica": "Soma Total", "Valor": info.get("soma_total")},
+                                            {"Métrica": "Média", "Valor": info.get("media")},
+                                            {"Métrica": "Mediana", "Valor": info.get("mediana")},
+                                            {"Métrica": "Maior Valor", "Valor": info.get("maior_valor")},
+                                            {"Métrica": "Menor Valor", "Valor": info.get("menor_valor")},
+                                        ])
+                                        st.dataframe(money_df, use_container_width=True, hide_index=True)
+
                                     elif tipo == "categorica":
                                         st.write("Top 10 valores mais frequentes (% do total):")
                                         top_df = pd.DataFrame(
@@ -277,15 +296,47 @@ class StreamlitApp:
                                             columns=["Valor", "% do Total"]
                                         )
                                         st.dataframe(top_df, use_container_width=True, hide_index=True)
+
                                     elif tipo == "data":
-                                        st.write(f"Data mínima: {info['data_min']}")
-                                        st.write(f"Data máxima: {info['data_max']}")
+                                        data_min = info.get("data_min")
+                                        data_max = info.get("data_max")
+                                        intervalo = info.get("intervalo_dias")
+
+                                        st.write(f"Data mais antiga: {data_min or 'não disponível'}")
+                                        st.write(f"Data mais recente: {data_max or 'não disponível'}")
+                                        if intervalo is not None:
+                                            st.write(f"Intervalo total: {intervalo} dias")
+
+                                        evolucao = info.get("evolucao_trimestral")
+                                        if evolucao:
+                                            st.write("Evolução por trimestre:")
+                                            st.dataframe(
+                                                pd.DataFrame(evolucao),
+                                                use_container_width=True, hide_index=True
+                                            )
+                                        else:
+                                            st.info("Não foi possível calcular a evolução trimestral para esta coluna.")
+
                                     elif tipo == "identificador":
                                         st.write("Coluna identificadora — não é submetida a estatísticas agregadas.")
                                         st.write(f"Exemplos de valores: {info['exemplos']}")
+
                                     elif tipo == "texto_livre":
                                         st.write("Campo de texto livre com alta variabilidade.")
-                                        st.write(f"Comprimento médio do texto: {info['comprimento_medio']} caracteres")
+                                        comprimento = info.get("comprimento_medio")
+                                        if comprimento is not None:
+                                            st.write(f"Comprimento médio do texto: {comprimento} caracteres")
+
+                                        top_normalizado = info.get("top_valores_normalizados")
+                                        if top_normalizado:
+                                            st.write("Top 10 valores mais frequentes (normalizados — maiúsculas e sem espaços extras):")
+                                            top_df = pd.DataFrame(
+                                                list(top_normalizado.items()),
+                                                columns=["Valor Normalizado", "% do Total"]
+                                            )
+                                            st.dataframe(top_df, use_container_width=True, hide_index=True)
+                                        else:
+                                            st.info("Não foi possível calcular a frequência de valores para esta coluna.")
 
                     except Exception as e:
                         st.error(f"Erro ao analisar a tabela {table_name}: {e}")
