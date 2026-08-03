@@ -3,6 +3,7 @@
 venv/
 .vscode/
 .idea/
+teste/
 
 # Arquivos de Cache e Pré-Compilação do Python
 **/__pycache__/
