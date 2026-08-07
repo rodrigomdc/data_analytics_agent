@@ -50,6 +50,7 @@ Retorne estritamente um JSON estruturado com o seguinte formato:
     "chart_type": "bar" ou "line" ou "pie" ou "scatter",
     "x_col": "col_x",
     "y_col": "col_y",
+    "color_col": "nome_da_coluna_de_cor" ou null (utilize esta chave se o usuário pedir para destacar, colorir de forma diferente ou agrupar os dados por uma coluna específica),
     "title": "Título"
 }}
 """

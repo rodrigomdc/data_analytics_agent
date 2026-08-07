@@ -155,7 +155,8 @@ class GraphNodes:
                 chart_type=res_json["chart_type"],
                 x_col=res_json["x_col"],
                 y_col=res_json["y_col"],
-                title=res_json["title"]
+                title=res_json["title"],
+                color_col=res_json.get("color_col")
             )
             logs = state["execution_logs"] + \
                 [f"Gráfico gerado: {res_json['title']}"]
