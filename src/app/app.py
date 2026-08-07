@@ -71,6 +71,9 @@ class StreamlitApp:
         if "last_dataframe" not in st.session_state:
             st.session_state.last_dataframe = None
 
+        if "cached_profiles" not in st.session_state:
+            st.session_state.cached_profiles = {}
+
     def render_header(self):
         """Renderiza o cabeçalho principal da página do painel web."""
         st.title("Interface Inteligente de Consulta e Visualização")
@@ -177,6 +180,7 @@ class StreamlitApp:
                 st.session_state.messages = []
                 st.session_state.temp_charts = []
                 st.session_state.last_dataframe = None
+                st.session_state.cached_profiles = {}
                 st.session_state.uploader_key += 1
 
                 # Reinicia a aplicação retornando o usuário à Tela 1 de carregamento limpo
@@ -247,9 +251,11 @@ class StreamlitApp:
                 for table_name in active_tables:
                     st.markdown(f"### Tabela: `{table_name}`")
                     try:
-                        # Busca a amostra e o perfil semântico usando o serviço
-                        analysis = PreliminaryAnalysisService.get_analysis(
-                            table_name)
+                        # Busca a amostra e o perfil semântico usando cache de sessão para evitar recálculos em reruns
+                        if table_name not in st.session_state.cached_profiles:
+                            st.session_state.cached_profiles[table_name] = PreliminaryAnalysisService.get_analysis(
+                                table_name)
+                        analysis = st.session_state.cached_profiles[table_name]
 
                         # Cria as abas: amostra bruta e perfil inteligente por coluna
                         tab1, tab2 = st.tabs(

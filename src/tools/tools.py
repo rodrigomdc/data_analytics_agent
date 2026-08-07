@@ -12,6 +12,34 @@ import unicodedata
 import pandas as pd
 import plotly.express as px
 from src.db_manager.duckdb_manager import DuckDBManager
+from src.utils.utils import setup_logger
+
+logger = setup_logger("Tools")
+
+
+def _validate_sql_safety(sql: str) -> None:
+    """Valida se a query SQL é segura para execução (somente leitura).
+
+    Args:
+        sql (str): Query SQL normalizada.
+
+    Raises:
+        PermissionError: Se a query contiver comandos destrutivos.
+    """
+    query_upper = sql.upper().strip()
+
+    allowed_prefixes = ("SELECT", "SHOW", "PRAGMA", "DESCRIBE", "EXPLAIN")
+    if not query_upper.startswith(allowed_prefixes):
+        raise PermissionError(
+            f"Apenas consultas de leitura são permitidas. Comando detectado: {query_upper.split()[0] if query_upper else ''}"
+        )
+
+    forbidden_terms = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE TABLE"]
+    for term in forbidden_terms:
+        if re.search(rf"\b{term}\b", query_upper):
+            raise PermissionError(
+                f"A query contém o comando proibido '{term}'. Apenas leitura é permitida."
+            )
 
 
 def query_duckdb_tool(sql_query: str) -> pd.DataFrame:
@@ -24,6 +52,7 @@ def query_duckdb_tool(sql_query: str) -> pd.DataFrame:
         pd.DataFrame: DataFrame contendo o resultado da consulta analítica.
     """
     normalized_query = unicodedata.normalize('NFC', sql_query)
+    _validate_sql_safety(normalized_query)
     db = DuckDBManager()
     return db.execute_query(normalized_query)
 

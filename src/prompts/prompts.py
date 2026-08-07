@@ -30,6 +30,9 @@ Dicionário de Dados Carregado para Referência:
 Esquema Atual do Banco de Dados DuckDB:
 {schema}
 
+Pergunta do Usuário:
+"{user_query}"
+
 FORMATO OBRIGATÓRIO DE RETORNO:
 Sua resposta deve ser estritamente um objeto JSON estruturado válido, sem tags markdown adicionais (como ```json), contendo exatamente este formato:
 {{
@@ -53,10 +56,15 @@ Retorne estritamente um JSON estruturado com o seguinte formato:
 
 ANALYST_PROMPT = """
 Você é o Analyst Node. Escreva uma única query SQL válida para DuckDB para responder ao pedido do usuário.
-Nunca invente dados.    
+Nunca invente dados.
+
+Dicionário de dados para entender o significado semântico das colunas (use isso para encontrar as colunas certas):
+{data_dict}
+
+Esquema físico do Banco de Dados:
+{schema}
+
 Pedido do usuário: "{user_query}"
-Tabelas disponíveis:
-{schema}    
 Retorne estritamente a query SQL limpa, sem blocos markdown adicionais.
 """
 
