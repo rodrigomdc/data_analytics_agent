@@ -20,6 +20,7 @@ class AgentState(TypedDict):
         sql_query (Optional[str]): A instrução de consulta SQL gerada pelo nó analista.
         dataframe (Optional[pd.DataFrame]): Os dados tabulares resultantes da execução do SQL.
         chart_fig (Optional[object]): Objeto de figura do Plotly representando o gráfico gerado.
+        chart_config (Optional[dict]): Dicionário JSON contendo os parâmetros de plotagem do gráfico.
         explanation (Optional[str]): A resposta descritiva final voltada para negócios.
         execution_logs (List[str]): Histórico sequencial das ações tomadas pelos agentes.
     """
@@ -30,5 +31,6 @@ class AgentState(TypedDict):
     sql_query: Optional[str]
     dataframe: Optional[pd.DataFrame]
     chart_fig: Optional[object]
+    chart_config: Optional[dict]
     explanation: Optional[str]
     execution_logs: List[str]

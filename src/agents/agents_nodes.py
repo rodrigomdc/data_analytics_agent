@@ -122,7 +122,7 @@ class GraphNodes:
             )
             logs = state["execution_logs"] + \
                 [f"Gráfico gerado: {res_json['title']}"]
-            return {"chart_fig": fig, "execution_logs": logs}
+            return {"chart_fig": fig, "chart_config": res_json, "execution_logs": logs}
         except Exception as e:
             logger.error(f"Falha ao plotar gráfico: {e}")
             return {"execution_logs": state["execution_logs"] + [f"Falha ao plotar gráfico: {e}"]}

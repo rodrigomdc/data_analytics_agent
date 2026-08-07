@@ -1,39 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Ponto de entrada para a execução unificada do Grafo de Estados (LangGraph)."""
+"""Ponto de entrada para a execução e compilação do Grafo de Estados (LangGraph)."""
 
 import json
-from src.db_manager.duckdb_manager import DuckDBManager
 from src.graph.builder import WorkflowGraphBuilder
-from src.utils.utils import validate_user_query
 
 
-def run_orchestrator_graph(user_query: str, data_dict: dict) -> dict:
-    """Instancia, compila e executa o fluxo do Grafo síncrono.
-
-    Este método inicializa o estado de entrada mapeando o esquema do banco,
-    normalizando o dicionário de dados em uma string JSON descritiva e
-    invocando a execução do motor de estados do LangGraph.
+def run_orchestrator_graph(user_query: str, data_dict: dict, schema: str) -> dict:
+    """Compila e executa o fluxo unificado do Grafo síncrono.
 
     Args:
         user_query (str): A pergunta em linguagem natural feita pelo usuário.
         data_dict (dict): Dicionário contendo os metadados do dataset carregado.
+        schema (str): Esquema de banco de dados gerado dinamicamente pelo DuckDB.
 
     Returns:
-        dict: O estado final compartilhado (AgentState) após a conclusão de todos os nós.
+        dict: O estado final compartilhado (AgentState) após a conclusão do grafo.
     """
-    db = DuckDBManager()
-    schema = db.get_schema_info()
-
-    # Validação de entrada do usuário
-    is_valid, error_msg = validate_user_query(user_query, schema)
-    if not is_valid:
-        return {
-            "explanation": error_msg,
-            "dataframe": None,
-            "chart_fig": None,
-            "execution_logs": ["Validação local: Pergunta fora de contexto. Fluxo abortado."]
-        }
-
     app_graph = WorkflowGraphBuilder().build()
 
     # Se o data_dict for um dicionário de erro/mensagem, converte para aviso amigável à LLM
@@ -50,6 +32,7 @@ def run_orchestrator_graph(user_query: str, data_dict: dict) -> dict:
         "next_step": "",
         "sql_query": None,
         "dataframe": None,
+        "chart_config": None,  # Inicia nulo para o cache
         "chart_fig": None,
         "explanation": None,
         "execution_logs": []

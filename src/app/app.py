@@ -13,6 +13,7 @@ from config import UPLOADS_DIR
 from src.utils.utils import reset_application_storage
 from src.services.ingestion_service import DataIngestionService
 from src.services.analysis_service import PreliminaryAnalysisService
+from src.services.query_service import QueryService
 from src.graph.orchestrator import run_orchestrator_graph
 from src.memory.conversation import ConversationMemory
 
@@ -43,20 +44,20 @@ class StreamlitApp:
         # Define se a base de dados DuckDB está pronta para ser consultada
         if "db_ready" not in st.session_state:
             st.session_state.db_ready = False
-            
+
         # Dicionário unificado de metadados das tabelas (inicia sempre como dict vazio)
         if "data_dict" not in st.session_state or not isinstance(st.session_state.data_dict, dict):
             st.session_state.data_dict = {}
-            
+
         # Conjunto (set) contendo os nomes dos arquivos ZIP já processados na sessão
         if "loaded_zip_names" not in st.session_state:
             st.session_state.loaded_zip_names = set()
 
-        # Conjunto (set) com os nomes de todas as tabelas físicas já carregadas no DuckDB. 
+        # Conjunto (set) com os nomes de todas as tabelas físicas já carregadas no DuckDB.
         # Fica desacoplado do data_dict para que a análise preliminar não dependa da existência de um dicionário de dados descritivo dentro do ZIP.
         if "loaded_tables" not in st.session_state:
             st.session_state.loaded_tables = set()
-        
+
         # Chave dinâmica incremental para limpar fisicamente o campo de upload no reset
         if "uploader_key" not in st.session_state:
             st.session_state.uploader_key = 0
@@ -66,7 +67,7 @@ class StreamlitApp:
 
         if "temp_charts" not in st.session_state:
             st.session_state.temp_charts = []
-        
+
         if "last_dataframe" not in st.session_state:
             st.session_state.last_dataframe = None
 
@@ -80,8 +81,8 @@ class StreamlitApp:
         Gerencia a área de drop de novos pacotes ZIP de forma cumulativa
         e exibe a lista de bases indexadas, além do botão de redefinição de dados.
         """
-        st.sidebar.header("Interface A - Carga de Arquivos")
-        
+        st.sidebar.header("Carga e Listagem de Arquivos")
+
         # O uploader usa a uploader_key para se auto-limpar e virar uma 'zona de drop' temporária
         uploaded_zip = st.sidebar.file_uploader(
             "Arraste um ZIP para adicionar dados à análise",
@@ -97,13 +98,15 @@ class StreamlitApp:
                 with st.sidebar.status(f"Adicionando dados de {uploaded_zip.name}...") as status:
                     try:
                         # Define o caminho temporário de gravação do buffer físico
-                        temp_zip_path = os.path.join(UPLOADS_DIR, "payload.zip")
+                        temp_zip_path = os.path.join(
+                            UPLOADS_DIR, "payload.zip")
                         with open(temp_zip_path, "wb") as f:
                             f.write(uploaded_zip.getbuffer())
-                            
+
                         # Aciona o serviço coordenador de ETL (Descompactação, dicionário e DuckDB)
-                        res = DataIngestionService.process_zip_payload(temp_zip_path)
-                        
+                        res = DataIngestionService.process_zip_payload(
+                            temp_zip_path)
+
                         # Bloco de mesclagem cumulativa de Dicionários de Dados (Metadados)
                         new_dict = res["data_dict"]
                         if isinstance(new_dict, dict) and "mensagem" not in new_dict and "erro" not in new_dict:
@@ -123,23 +126,25 @@ class StreamlitApp:
                         # Atualiza os estados lógicos de persistência da sessão
                         if len(st.session_state.loaded_tables) > 0:
                             st.session_state.db_ready = True
-                            
-                        st.session_state.loaded_zip_names.add(uploaded_zip.name)
-                        
+
+                        st.session_state.loaded_zip_names.add(
+                            uploaded_zip.name)
+
                         # Atualiza o status visual do processo para o usuário
                         status.update(
-                            label=f"Dados de '{uploaded_zip.name}' integrados!", 
+                            label=f"Dados de '{uploaded_zip.name}' integrados!",
                             state="complete"
                         )
-                        
+
                         # Incrementa a chave para recriar o uploader vazio na tela
                         st.session_state.uploader_key += 1
-                        
+
                         # Recarrega a aplicação para atualizar instantaneamente o dicionário na tela
                         st.rerun()
-                        
+
                     except Exception as e:
-                        status.update(label="Falha na carga do dataset", state="error")
+                        status.update(
+                            label="Falha na carga do dataset", state="error")
                         st.sidebar.error(f"Erro: {e}")
 
         # Se houver bases carregadas, exibe a lista de arquivos ativos e o botão de recomeçar
@@ -185,11 +190,12 @@ class StreamlitApp:
         """
         # Se db_ready for False (Tela 1), exibe mensagem instrutiva e encerra a renderização
         if not st.session_state.db_ready:
-            st.info("Aguardando envio do pacote de dados (.ZIP) para carregar o console analítico.")
+            st.info(
+                "Aguardando envio do pacote de dados (.ZIP) para carregar o console analítico.")
             return
 
         # Se db_ready for True (Tela 2), renderiza a interface central
-        st.subheader("Interface B - Análises e Consultas")
+        st.subheader("Análises e Consultas")
 
         # --- INÍCIO - METADADOS E DICIONÁRIO DE DADOS ---
         with st.expander("Metadados e Dicionário de Dados"):
@@ -204,14 +210,17 @@ class StreamlitApp:
                         for col_name, description in columns.items():
                             # Se for o formato dinâmico (dict de N variáveis), busca a descrição funcional
                             if isinstance(description, dict):
-                                desc_text = description.get("Descrição funcional", str(description))
+                                desc_text = description.get(
+                                    "Descrição funcional", str(description))
                             else:
                                 desc_text = str(description)
-                            table_rows.append([table_name, col_name, desc_text])
+                            table_rows.append(
+                                [table_name, col_name, desc_text])
 
                     # Gera o DataFrame nativo e plota usando o Streamlit
-                    df_metadata = pd.DataFrame(table_rows, columns=["Tabela", "Coluna", "Descrição"])
-                    st.dataframe(df_metadata, use_container_width=True, hide_index=True)
+                    df_metadata = pd.DataFrame(
+                        table_rows, columns=["Tabela", "Coluna", "Descrição"])
+                    st.dataframe(df_metadata, width='stretch', hide_index=True)
                 except Exception as e:
                     st.text(str(data_dict))
 
@@ -229,7 +238,8 @@ class StreamlitApp:
         # --- INÍCIO - ANÁLISE PRELIMINAR DOS DADOS ---
         with st.expander("📊 Análise Preliminar dos Dados"):
             # A lista de tabelas vem diretamente do que foi fisicamente carregado no DuckDB, não do dicionário descritivo.
-            active_tables = sorted(st.session_state.get("loaded_tables", set()))
+            active_tables = sorted(
+                st.session_state.get("loaded_tables", set()))
 
             if not active_tables:
                 st.info("Nenhuma tabela disponível para análise no momento.")
@@ -238,14 +248,16 @@ class StreamlitApp:
                     st.markdown(f"### Tabela: `{table_name}`")
                     try:
                         # Busca a amostra e o perfil semântico usando o serviço
-                        analysis = PreliminaryAnalysisService.get_analysis(table_name)
+                        analysis = PreliminaryAnalysisService.get_analysis(
+                            table_name)
 
                         # Cria as abas: amostra bruta e perfil inteligente por coluna
-                        tab1, tab2 = st.tabs(["Amostra (.head)", "Perfil Inteligente das Colunas"])
+                        tab1, tab2 = st.tabs(
+                            ["Amostra (.head)", "Perfil Inteligente das Colunas"])
 
                         with tab1:
                             st.write("Primeiras 5 linhas da base de dados:")
-                            st.dataframe(analysis["head"], use_container_width=True)
+                            st.dataframe(analysis["head"], width='stretch')
 
                         with tab2:
                             profile = analysis["profile"]
@@ -260,7 +272,8 @@ class StreamlitApp:
                                     "Valores Únicos": info["valores_unicos"],
                                 })
                             st.write("Resumo geral das colunas:")
-                            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                            st.dataframe(pd.DataFrame(summary_rows),
+                                         width='stretch', hide_index=True)
 
                             # Detalhamento específico por coluna, de acordo com o tipo detectado
                             for col_name, info in profile.items():
@@ -268,7 +281,8 @@ class StreamlitApp:
                                     tipo = info["tipo_detectado"]
 
                                     if info.get("erro_processamento"):
-                                        st.warning("Não foi possível processar esta coluna automaticamente.")
+                                        st.warning(
+                                            "Não foi possível processar esta coluna automaticamente.")
 
                                     elif tipo == "numerica":
                                         st.write("Estatísticas descritivas:")
@@ -276,95 +290,122 @@ class StreamlitApp:
                                             list(info["estatisticas"].items()),
                                             columns=["Métrica", "Valor"]
                                         )
-                                        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(
+                                            stats_df, width='stretch', hide_index=True)
 
                                     elif tipo == "monetaria":
                                         st.write("Estatísticas de valor:")
                                         money_df = pd.DataFrame([
-                                            {"Métrica": "Soma Total", "Valor": info.get("soma_total")},
-                                            {"Métrica": "Média", "Valor": info.get("media")},
-                                            {"Métrica": "Mediana", "Valor": info.get("mediana")},
-                                            {"Métrica": "Maior Valor", "Valor": info.get("maior_valor")},
-                                            {"Métrica": "Menor Valor", "Valor": info.get("menor_valor")},
+                                            {"Métrica": "Soma Total",
+                                                "Valor": info.get("soma_total")},
+                                            {"Métrica": "Média",
+                                                "Valor": info.get("media")},
+                                            {"Métrica": "Mediana",
+                                                "Valor": info.get("mediana")},
+                                            {"Métrica": "Maior Valor",
+                                                "Valor": info.get("maior_valor")},
+                                            {"Métrica": "Menor Valor",
+                                                "Valor": info.get("menor_valor")},
                                         ])
-                                        st.dataframe(money_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(
+                                            money_df, width='stretch', hide_index=True)
 
                                     elif tipo == "categorica":
-                                        st.write("Top 10 valores mais frequentes (% do total):")
+                                        st.write(
+                                            "Top 10 valores mais frequentes (% do total):")
                                         top_df = pd.DataFrame(
                                             list(info["top_valores"].items()),
                                             columns=["Valor", "% do Total"]
                                         )
-                                        st.dataframe(top_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(
+                                            top_df, width='stretch', hide_index=True)
 
                                     elif tipo == "data":
                                         data_min = info.get("data_min")
                                         data_max = info.get("data_max")
                                         intervalo = info.get("intervalo_dias")
 
-                                        st.write(f"Data mais antiga: {data_min or 'não disponível'}")
-                                        st.write(f"Data mais recente: {data_max or 'não disponível'}")
+                                        st.write(
+                                            f"Data mais antiga: {data_min or 'não disponível'}")
+                                        st.write(
+                                            f"Data mais recente: {data_max or 'não disponível'}")
                                         if intervalo is not None:
-                                            st.write(f"Intervalo total: {intervalo} dias")
+                                            st.write(
+                                                f"Intervalo total: {intervalo} dias")
 
-                                        evolucao = info.get("evolucao_trimestral")
+                                        evolucao = info.get(
+                                            "evolucao_trimestral")
                                         if evolucao:
                                             st.write("Evolução por trimestre:")
                                             st.dataframe(
                                                 pd.DataFrame(evolucao),
-                                                use_container_width=True, hide_index=True
+                                                width='stretch', hide_index=True
                                             )
                                         else:
-                                            st.info("Não foi possível calcular a evolução trimestral para esta coluna.")
+                                            st.info(
+                                                "Não foi possível calcular a evolução trimestral para esta coluna.")
 
                                     elif tipo == "identificador":
-                                        st.write("Coluna identificadora — não é submetida a estatísticas agregadas.")
-                                        st.write(f"Exemplos de valores: {info['exemplos']}")
+                                        st.write(
+                                            "Coluna identificadora — não é submetida a estatísticas agregadas.")
+                                        st.write(
+                                            f"Exemplos de valores: {info['exemplos']}")
 
                                     elif tipo == "texto_livre":
-                                        st.write("Campo de texto livre com alta variabilidade.")
-                                        comprimento = info.get("comprimento_medio")
+                                        st.write(
+                                            "Campo de texto livre com alta variabilidade.")
+                                        comprimento = info.get(
+                                            "comprimento_medio")
                                         if comprimento is not None:
-                                            st.write(f"Comprimento médio do texto: {comprimento} caracteres")
+                                            st.write(
+                                                f"Comprimento médio do texto: {comprimento} caracteres")
 
-                                        top_normalizado = info.get("top_valores_normalizados")
+                                        top_normalizado = info.get(
+                                            "top_valores_normalizados")
                                         if top_normalizado:
-                                            st.write("Top 10 valores mais frequentes (normalizados — maiúsculas e sem espaços extras):")
+                                            st.write(
+                                                "Top 10 valores mais frequentes (normalizados — maiúsculas e sem espaços extras):")
                                             top_df = pd.DataFrame(
                                                 list(top_normalizado.items()),
-                                                columns=["Valor Normalizado", "% do Total"]
+                                                columns=[
+                                                    "Valor Normalizado", "% do Total"]
                                             )
-                                            st.dataframe(top_df, use_container_width=True, hide_index=True)
+                                            st.dataframe(
+                                                top_df, width='stretch', hide_index=True)
                                         else:
-                                            st.info("Não foi possível calcular a frequência de valores para esta coluna.")
+                                            st.info(
+                                                "Não foi possível calcular a frequência de valores para esta coluna.")
 
                     except Exception as e:
-                        st.error(f"Erro ao analisar a tabela {table_name}: {e}")
+                        st.error(
+                            f"Erro ao analisar a tabela {table_name}: {e}")
 
                     st.markdown("---")
         # --- FIM - ANÁLISE PRELIMINAR DOS DADOS ---
-
 
         # Recupera as conversas salvas na sessão
         chat_history = ConversationMemory.get_history()
 
         # Renderização do histórico estável do chat
-        for msg in chat_history:
+        for idx,  msg in enumerate(chat_history):
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
                 # Renderiza o gráfico do Plotly Express primeiro (Boa Prática de UX)
                 if msg.get("chart") is not None:
-                    st.plotly_chart(msg["chart"], width="stretch")
+                    st.plotly_chart(
+                        msg["chart"], width="stretch", key=f"plotly_chart_{idx}")
 
                 # Se houver gráfico, renderiza a tabela de apoio recolhida em um expansor
                 if msg.get("table") is not None:
                     df_result = msg["table"]
                     if msg.get("chart") is not None:
                         with st.expander("📊 Visualizar Dados Brutos (Tabela)"):
-                            st.dataframe(df_result, width="stretch")
+                            st.dataframe(df_result, width="stretch",
+                                         key=f"dataframe_view_{idx}")
                     else:
-                        st.dataframe(df_result, width="stretch")
+                        st.dataframe(df_result, width="stretch",
+                                     key=f"dataframe_view_{idx}")
 
         # Entrada de novos inputs do usuário no console de chat
         if user_query := st.chat_input("Insira sua pergunta:"):
@@ -376,13 +417,15 @@ class StreamlitApp:
                 st.markdown(user_query)
 
             # Processamento em background
-            with st.spinner("O Grafo de Agentes está processando..."):
+            with st.spinner("O Assistente está processando..."):
                 try:
                     # Executa de forma síncrona o grafo compilado do LangGraph (valida e orquestra)
-                    final_state = run_orchestrator_graph(user_query, st.session_state.data_dict)
+                    final_state = QueryService.process_query(
+                        user_query, st.session_state.data_dict)
 
                     # Extrai as variáveis geradas de forma nativa do AgentState retornado
-                    explanation = final_state.get("explanation", "Não foi possível obter resposta.")
+                    explanation = final_state.get(
+                        "explanation", "Não foi possível obter resposta.")
                     df_result = final_state.get("dataframe")
                     plotly_fig = final_state.get("chart_fig")
 
