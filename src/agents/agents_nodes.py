@@ -3,6 +3,7 @@
 
 import json
 import time
+import re
 from src.models.state_model import AgentState
 from langchain_google_genai import ChatGoogleGenerativeAI
 from src.tools.tools import query_duckdb_tool, create_chart_tool
@@ -10,6 +11,40 @@ from src.prompts.prompts import SUPERVISOR_PROMPT, SYNTHESIZE_RESPONSE_PROMPT, C
 from src.utils.utils import setup_logger
 
 logger = setup_logger("AgentsNodes")
+
+
+def _clean_llm_output(response, fence_type: str = "") -> str:
+    """Extrai texto do retorno da LLM de forma segura (trata str e list) e limpa blocos markdown.
+
+    Args:
+        response: Resposta retornada pela chamada .invoke() da LLM (AIMessage ou str).
+        fence_type (str): Tipo de bloco markdown a ser removido (ex: 'json', 'sql').
+
+    Returns:
+        str: Conteúdo textual limpo e sem marcações markdown.
+    """
+    content = getattr(response, "content", response)
+    if isinstance(content, list):
+        parts = []
+        for p in content:
+            if isinstance(p, str):
+                parts.append(p)
+            elif isinstance(p, dict) and "text" in p:
+                parts.append(p["text"])
+        text = "".join(parts)
+    else:
+        text = str(content)
+
+    text = text.strip()
+    # Remove abertura de bloco ```json, ```sql, ```
+    pattern = rf"^```(?:{fence_type})?\s*" if fence_type else r"^```(?:[a-zA-Z]+)?\s*"
+    text = re.sub(pattern, "", text, flags=re.IGNORECASE).strip()
+
+    # Remove fechamento de bloco ```
+    if text.endswith("```"):
+        text = text[:-3].strip()
+
+    return text.strip()
 
 
 class GraphNodes:
@@ -42,11 +77,12 @@ class GraphNodes:
         """
         prompt = SUPERVISOR_PROMPT.format(
             data_dict=state['data_dict'],
-            schema=state['schema']
+            schema=state['schema'],
+            user_query=state['user_query']
         )
         try:
             response = self.llm_deterministic.invoke(prompt)
-            clean_content = response.content.strip().replace("```json", "").replace("```", "")
+            clean_content = _clean_llm_output(response, "json")
             res_json = json.loads(clean_content)
             next_step = res_json["next_step"]
         except Exception as e:
@@ -70,10 +106,11 @@ class GraphNodes:
 
         prompt = ANALYST_PROMPT.format(
             user_query=state['user_query'],
-            schema=state['schema']
+            schema=state['schema'],
+            data_dict=state['data_dict']
         )
-        sql_query = self.llm_deterministic.invoke(
-            prompt).content.strip().replace("```sql", "").replace("```", "")
+        response = self.llm_deterministic.invoke(prompt)
+        sql_query = _clean_llm_output(response, "sql")
         logs = state["execution_logs"] + [f"Analyst gerou SQL: {sql_query}"]
         try:
             df = query_duckdb_tool(sql_query)
@@ -110,7 +147,7 @@ class GraphNodes:
         )
         try:
             response = self.llm_deterministic.invoke(prompt)
-            clean_content = response.content.strip().replace("```json", "").replace("```", "")
+            clean_content = _clean_llm_output(response, "json")
             res_json = json.loads(clean_content)
 
             fig = create_chart_tool(
@@ -146,4 +183,5 @@ class GraphNodes:
             data_dict=state['data_dict']
         )
         response = self.llm_creative.invoke(prompt)
-        return {"explanation": response.content}
+        explanation = _clean_llm_output(response)
+        return {"explanation": explanation}

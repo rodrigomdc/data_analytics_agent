@@ -70,6 +70,9 @@ class StreamlitApp:
         if "last_dataframe" not in st.session_state:
             st.session_state.last_dataframe = None
 
+        if "cached_profiles" not in st.session_state:
+            st.session_state.cached_profiles = {}
+
     def render_header(self):
         """Renderiza o cabeçalho principal da página do painel web."""
         st.title("Interface Inteligente de Consulta e Visualização")
@@ -172,6 +175,7 @@ class StreamlitApp:
                 st.session_state.messages = []
                 st.session_state.temp_charts = []
                 st.session_state.last_dataframe = None
+                st.session_state.cached_profiles = {}
                 st.session_state.uploader_key += 1
 
                 # Reinicia a aplicação retornando o usuário à Tela 1 de carregamento limpo
@@ -211,7 +215,7 @@ class StreamlitApp:
 
                     # Gera o DataFrame nativo e plota usando o Streamlit
                     df_metadata = pd.DataFrame(table_rows, columns=["Tabela", "Coluna", "Descrição"])
-                    st.dataframe(df_metadata, use_container_width=True, hide_index=True)
+                    st.dataframe(df_metadata, width="stretch", hide_index=True)
                 except Exception as e:
                     st.text(str(data_dict))
 
@@ -237,15 +241,17 @@ class StreamlitApp:
                 for table_name in active_tables:
                     st.markdown(f"### Tabela: `{table_name}`")
                     try:
-                        # Busca a amostra e o perfil semântico usando o serviço
-                        analysis = PreliminaryAnalysisService.get_analysis(table_name)
+                        # Busca a amostra e o perfil semântico usando cache de sessão para evitar recálculos em reruns
+                        if table_name not in st.session_state.cached_profiles:
+                            st.session_state.cached_profiles[table_name] = PreliminaryAnalysisService.get_analysis(table_name)
+                        analysis = st.session_state.cached_profiles[table_name]
 
                         # Cria as abas: amostra bruta e perfil inteligente por coluna
                         tab1, tab2 = st.tabs(["Amostra (.head)", "Perfil Inteligente das Colunas"])
 
                         with tab1:
                             st.write("Primeiras 5 linhas da base de dados:")
-                            st.dataframe(analysis["head"], use_container_width=True)
+                            st.dataframe(analysis["head"], width="stretch")
 
                         with tab2:
                             profile = analysis["profile"]
@@ -260,7 +266,7 @@ class StreamlitApp:
                                     "Valores Únicos": info["valores_unicos"],
                                 })
                             st.write("Resumo geral das colunas:")
-                            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                            st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
 
                             # Detalhamento específico por coluna, de acordo com o tipo detectado
                             for col_name, info in profile.items():
@@ -276,7 +282,7 @@ class StreamlitApp:
                                             list(info["estatisticas"].items()),
                                             columns=["Métrica", "Valor"]
                                         )
-                                        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(stats_df, width="stretch", hide_index=True)
 
                                     elif tipo == "monetaria":
                                         st.write("Estatísticas de valor:")
@@ -287,7 +293,7 @@ class StreamlitApp:
                                             {"Métrica": "Maior Valor", "Valor": info.get("maior_valor")},
                                             {"Métrica": "Menor Valor", "Valor": info.get("menor_valor")},
                                         ])
-                                        st.dataframe(money_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(money_df, width="stretch", hide_index=True)
 
                                     elif tipo == "categorica":
                                         st.write("Top 10 valores mais frequentes (% do total):")
@@ -295,7 +301,7 @@ class StreamlitApp:
                                             list(info["top_valores"].items()),
                                             columns=["Valor", "% do Total"]
                                         )
-                                        st.dataframe(top_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(top_df, width="stretch", hide_index=True)
 
                                     elif tipo == "data":
                                         data_min = info.get("data_min")
@@ -312,7 +318,7 @@ class StreamlitApp:
                                             st.write("Evolução por trimestre:")
                                             st.dataframe(
                                                 pd.DataFrame(evolucao),
-                                                use_container_width=True, hide_index=True
+                                                width="stretch", hide_index=True
                                             )
                                         else:
                                             st.info("Não foi possível calcular a evolução trimestral para esta coluna.")
@@ -334,7 +340,7 @@ class StreamlitApp:
                                                 list(top_normalizado.items()),
                                                 columns=["Valor Normalizado", "% do Total"]
                                             )
-                                            st.dataframe(top_df, use_container_width=True, hide_index=True)
+                                            st.dataframe(top_df, width="stretch", hide_index=True)
                                         else:
                                             st.info("Não foi possível calcular a frequência de valores para esta coluna.")
 

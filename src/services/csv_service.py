@@ -72,35 +72,36 @@ class CSVService:
         conn = db.get_connection()
         loaded_tables = []
 
-        for path in csv_paths:
-            if path.endswith(".csv"):
-                is_valid, encoding, sep = CSVService._detect_csv_properties(
-                    path)
+        try:
+            for path in csv_paths:
+                if path.endswith(".csv"):
+                    is_valid, encoding, sep = CSVService._detect_csv_properties(
+                        path)
 
-                if is_valid:
-                    table_name = sanitize_table_name(path)
+                    if is_valid:
+                        table_name = sanitize_table_name(path)
 
-                    try:
-                        df_completo = pd.read_csv(
-                            path, sep=sep, encoding=encoding,decimal=",", on_bad_lines="skip")
+                        try:
+                            df_completo = pd.read_csv(
+                                path, sep=sep, encoding=encoding, decimal=",", on_bad_lines="skip")
 
-                        # Higienização de colunas
-                        df_completo.columns = [sanitize_column_name(
-                            col) for col in df_completo.columns]
+                            # Higienização de colunas
+                            df_completo.columns = [sanitize_column_name(
+                                col) for col in df_completo.columns]
 
-                        conn.execute(f'DROP TABLE IF EXISTS "{table_name}";')
-                        conn.register("temp_dataframe_ingestion", df_completo)
-                        conn.execute(
-                            f'CREATE TABLE "{table_name}" AS SELECT * FROM temp_dataframe_ingestion;')
-                        conn.unregister("temp_dataframe_ingestion")
+                            conn.execute(f'DROP TABLE IF EXISTS "{table_name}";')
+                            conn.register("temp_dataframe_ingestion", df_completo)
+                            conn.execute(
+                                f'CREATE TABLE "{table_name}" AS SELECT * FROM temp_dataframe_ingestion;')
+                            conn.unregister("temp_dataframe_ingestion")
 
-                        loaded_tables.append(table_name)
-                    except Exception as e:
-                        conn.close()
-                        logger.error(
-                            f"Erro ao carregar a tabela {table_name}: {e}")
-                        raise RuntimeError(
-                            f"Erro na carga física da tabela {table_name}: {e}")
+                            loaded_tables.append(table_name)
+                        except Exception as e:
+                            logger.error(
+                                f"Erro ao carregar a tabela {table_name}: {e}")
+                            raise RuntimeError(
+                                f"Erro na carga física da tabela {table_name}: {e}")
+        finally:
+            conn.close()
 
-        conn.close()
         return loaded_tables

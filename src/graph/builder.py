@@ -32,7 +32,16 @@ class WorkflowGraphBuilder:
         def router_after_analyst(state: AgentState) -> str:
             """Determina se o fluxo deve passar pelo gerador de gráficos antes da síntese."""
             query = state["user_query"].lower()
-            if any(kw in query for kw in ["gráfico", "grafico", "plot", "desenhe"]):
+            chart_keywords = [
+                "gráfico", "grafico", "gráficos", "graficos",
+                "plot", "plote", "plotar", "plotagem",
+                "desenhe", "desenhar",
+                "visualize", "visualizar", "visualização", "visualizacao",
+                "chart", "diagrama",
+                "barras", "pizza", "linha", "dispersão", "dispersao",
+                "histograma", "comparativo",
+            ]
+            if any(kw in query for kw in chart_keywords):
                 return "chart"
             return "synthesize"
 
