@@ -11,6 +11,7 @@ import re
 import unicodedata
 import pandas as pd
 import plotly.express as px
+from typing import Optional
 from src.db_manager.duckdb_manager import DuckDBManager
 from src.utils.utils import setup_logger
 
@@ -28,13 +29,15 @@ def _validate_sql_safety(sql: str) -> None:
     """
     query_upper = sql.upper().strip()
 
-    allowed_prefixes = ("SELECT", "SHOW", "PRAGMA", "DESCRIBE", "EXPLAIN")
+    allowed_prefixes = ("SELECT", "SHOW", "PRAGMA",
+                        "DESCRIBE", "EXPLAIN", "WITH")
     if not query_upper.startswith(allowed_prefixes):
         raise PermissionError(
             f"Apenas consultas de leitura são permitidas. Comando detectado: {query_upper.split()[0] if query_upper else ''}"
         )
 
-    forbidden_terms = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE TABLE"]
+    forbidden_terms = ["DROP", "DELETE", "UPDATE",
+                       "INSERT", "ALTER", "TRUNCATE", "CREATE TABLE"]
     for term in forbidden_terms:
         if re.search(rf"\b{term}\b", query_upper):
             raise PermissionError(
@@ -80,7 +83,7 @@ def format_axis_label(label: str) -> str:
     return clean_label
 
 
-def create_chart_tool(df: pd.DataFrame, chart_type: str, x_col: str, y_col: str, title: str) -> px.bar:
+def create_chart_tool(df: pd.DataFrame, chart_type: str, x_col: str, y_col: str, title: str, color_col: Optional[str] = None) -> px.bar:
     """Gera uma figura de visualização interativa do Plotly baseada em regras de Data Viz.
 
     Args:
@@ -88,6 +91,7 @@ def create_chart_tool(df: pd.DataFrame, chart_type: str, x_col: str, y_col: str,
         chart_type (str): Tipo do gráfico ('bar', 'line', 'pie', 'scatter').
         x_col (str): Nome da coluna para o eixo X.
         y_col (str): Nome da coluna para o eixo Y.
+        color_col(str): Destaque de cor da coluna.
         title (str): Título do gráfico.
 
     Returns:
@@ -112,35 +116,39 @@ def create_chart_tool(df: pd.DataFrame, chart_type: str, x_col: str, y_col: str,
             df = df.sort_values(by=y_col, ascending=True)
 
         if len(df) > 8:
+            # Passa o parâmetro 'color' de forma dinâmica se ele for fornecido
             fig = px.bar(df, x=y_col, y=x_col, orientation='h',
-                         title=title, template=template)
+                         title=title, template=template, color=color_col)
             fig.update_layout(xaxis_title=format_axis_label(
-                y_col), yaxis_title=format_axis_label(x_col))
+                y_col), yaxis_title=format_axis_label(x_col), showlegend=False)
         else:
-            fig = px.bar(df, x=x_col, y=y_col, title=title, template=template)
+            fig = px.bar(df, x=x_col, y=y_col, title=title,
+                         template=template, color=color_col)
             fig.update_layout(xaxis_title=format_axis_label(
-                x_col), yaxis_title=format_axis_label(y_col))
+                x_col), yaxis_title=format_axis_label(y_col), showlegend=False)
 
     elif chart_type == "line":
         fig = px.line(df, x=x_col, y=y_col, title=title,
-                      template=template, markers=True)
+                      template=template, markers=True, color=color_col)
         fig.update_layout(xaxis_title=format_axis_label(
-            x_col), yaxis_title=format_axis_label(y_col))
+            x_col), yaxis_title=format_axis_label(y_col), showlegend=False)
 
     elif chart_type == "pie":
         if len(df) > 5:
             df = df.sort_values(by=y_col, ascending=False)
             fig = px.bar(df, x=x_col, y=y_col,
-                         title=f"{title} (Convertido para barras)", template=template)
+                         title=f"{title} (Convertido para barras)", template=template, color=color_col)
             fig.update_layout(xaxis_title=format_axis_label(
-                x_col), yaxis_title=format_axis_label(y_col))
+                x_col), yaxis_title=format_axis_label(y_col), showlegend=False)
         else:
             fig = px.pie(df, names=x_col, values=y_col,
                          title=title, template=template, hole=0.3)
-            fig.update_layout(legend_title_text=format_axis_label(x_col))
+            fig.update_layout(legend_title_text=format_axis_label(
+                x_col), showlegend=False)
     else:
-        fig = px.scatter(df, x=x_col, y=y_col, title=title, template=template)
+        fig = px.scatter(df, x=x_col, y=y_col, title=title,
+                         template=template, color=color_col)
         fig.update_layout(xaxis_title=format_axis_label(
-            x_col), yaxis_title=format_axis_label(y_col))
+            x_col), yaxis_title=format_axis_label(y_col), showlegend=False)
 
     return fig
