@@ -9,3 +9,5 @@ plotly>=5.18.0
 tabulate>=0.10.0
 langsmith
 numpy
+markdown
+weasyprint
