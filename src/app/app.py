@@ -154,7 +154,7 @@ class StreamlitApp:
                     st.warning(
                         "⚠️ Nenhum dicionário de dados CSV foi localizado no arquivo ZIP. O assistente utilizará as colunas físicas.")
         # --- FIM - METADADOS E DICIONÁRIO DE DADOS ---
-        st.json(st.session_state.data_dict)
+        # st.json(st.session_state.data_dict)
 
     def _render_preliminary_analysis(self):
         """Renderiza a análise preliminar das tabelas carregadas."""
@@ -314,8 +314,6 @@ class StreamlitApp:
 
     def run(self):
         """Método principal de execução."""
+        self.render_header()
         self.render_sidebar()
         self.render_chat_interface()
-
-if __name__ == "__main__":
-    StreamlitApp().run()

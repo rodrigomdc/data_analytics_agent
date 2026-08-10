@@ -1,4 +1,3 @@
-# DEPOIS
 import streamlit as st
 from src.app.app import StreamlitApp
 from src.utils.utils import reset_application_storage

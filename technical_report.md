@@ -280,6 +280,10 @@ Usuário digita pergunta no chat
 
 ![qde_operacao_comprador](img/qde_operacao_comprador.png)
 
+### 5.5:
+
+![principal_cliente](img/principal_cliente.png)
+
 ---
 
 ## 6. Verificação dos Requisitos do Projeto
