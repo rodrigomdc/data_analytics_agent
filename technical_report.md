@@ -276,6 +276,10 @@ Usuário digita pergunta no chat
 
 ![grafico_barras_valor_nota_data](img/grafico_barras_valor_nota_data.png)
 
+### 5.4:
+
+![qde_operacao_comprador](img/qde_operacao_comprador.png)
+
 ---
 
 ## 6. Verificação dos Requisitos do Projeto
