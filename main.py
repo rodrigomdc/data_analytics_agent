@@ -10,9 +10,7 @@ def bootstrap_system():
     return True
 
 
-if __name__ == "__main__":
-    # Garante que o ambiente esteja 100% limpo antes de instanciar a UI
-    bootstrap_system()
-    # Instancia e roda a aplicação Streamlit
-    app = StreamlitApp()
-    app.run()
+# Executa sempre que o módulo é carregado pelo Streamlit
+bootstrap_system()
+app = StreamlitApp()
+app.run()
