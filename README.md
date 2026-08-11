@@ -28,7 +28,7 @@ Abaixo está a especificação técnica dos componentes principais do projeto:
 |---|---|---|
 | **Framework de Agentes** | **LangGraph** `>= 0.2.0` | Permite construir workflows baseados em grafos de estados dirigidos cíclicos/acíclicos. Garante controle de estado rígido e previne loops infinitos de chamadas à LLM comuns em orquestradores tradicionais. |
 | **Ecossistema de LLM** | **LangChain** `>= 0.1.0` | Proporciona integrações robustas para chamadas de modelos via `langchain-google-genai` e suporte comunitário (`langchain-community`). |
-| **Modelo de Linguagem (LLM)** | **Google Gemini 3.5 Flash** (via `gemini-3-flash-preview`) | Cérebro analítico configurado globalmente no projeto. Modelo otimizado para baixíssima latência, excelente raciocínio lógico-matemático e suporte nativo a respostas em formato JSON estruturado estável. |
+| **Modelo de Linguagem (LLM)** | **Google Gemini 2.5 Flash** (via `gemini-2.5-flash`) | Cérebro analítico configurado globalmente no projeto. Modelo otimizado para baixíssima latência, excelente raciocínio lógico-matemático e suporte nativo a respostas em formato JSON estruturado estável. |
 | **Interface de Usuário** | **Streamlit** `>= 1.30.0` | Viabiliza a renderização dinâmica de componentes visuais do dashboard e do chat interativo de forma rápida e orientada a objetos no Python. |
 | **Banco de Dados Analítico** | **DuckDB** `>= 0.10.0` | Adotado como banco persistente OLAP (orientado a colunas) em vez de bancos tradicionais de linha. Processa agregações, ordenações e consultas analíticas de grande porte em milissegundos. |
 | **Visualização de Dados** | **Plotly** `>= 5.18.0` | Utilizada pelo assistente para gerar gráficos vetoriais interativos e dinâmicos (Plotly Express) diretamente no navegador do usuário. |
