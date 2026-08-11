@@ -1,6 +1,6 @@
 # Interface Inteligente para Consulta de Arquivos CSV 
 
-Bem-vindo ao repositório do projeto da equipe GenAI Lab! Este projeto faz parte da Atividade Obrigatória 4  do curso InsurMinds (I2A2).
+Bem-vindo ao repositório do projeto da equipe GenAI Lab! Este projeto faz parte da Atividade Obrigatória 4 do curso InsurMinds (I2A2).
 
 **Equipe:**
 
@@ -14,9 +14,26 @@ Bem-vindo ao repositório do projeto da equipe GenAI Lab! Este projeto faz parte
 
 ### Objetivo:
 
-Contruir uma plataforma inteligente e modular baseada em agentes cognitivos capazes de interpretar perguntas em linguagem natural, realizar consultas analíticas e gerar representações gráficas interativas a partir de bases de dados armazenadas em arquivos CSV.
+Construir uma plataforma inteligente e modular baseada em agentes cognitivos capazes de interpretar perguntas em linguagem natural, realizar consultas analíticas e gerar representações gráficas interativas a partir de bases de dados armazenadas em arquivos CSV.
 
 A solução foi projetada sob os conceitos de **Clean Architecture (Arquitetura Limpa)** e **Orientação a Objetos (OOP)**, utilizando o **LangGraph** como motor de orquestração de estados, o **DuckDB** como banco de dados analítico de alta performance, e o **Google Gemini** como cérebro cognitivo dos agentes especialistas.
+
+---
+
+## 🛠️ Stack Tecnológica e Justificativa Analítica
+
+Abaixo está a especificação técnica dos componentes principais do projeto:
+
+| Componente | Tecnologia / Versão | Justificativa Analítica |
+|---|---|---|
+| **Framework de Agentes** | **LangGraph** `>= 0.2.0` | Permite construir workflows baseados em grafos de estados dirigidos cíclicos/acíclicos. Garante controle de estado rígido e previne loops infinitos de chamadas à LLM comuns em orquestradores tradicionais. |
+| **Ecossistema de LLM** | **LangChain** `>= 0.1.0` | Proporciona integrações robustas para chamadas de modelos via `langchain-google-genai` e suporte comunitário (`langchain-community`). |
+| **Modelo de Linguagem (LLM)** | **Google Gemini 2.5 Flash** (via `gemini-2.5-flash`) | Cérebro analítico configurado globalmente no projeto. Modelo otimizado para baixíssima latência, excelente raciocínio lógico-matemático e suporte nativo a respostas em formato JSON estruturado estável. |
+| **Interface de Usuário** | **Streamlit** `>= 1.30.0` | Viabiliza a renderização dinâmica de componentes visuais do dashboard e do chat interativo de forma rápida e orientada a objetos no Python. |
+| **Banco de Dados Analítico** | **DuckDB** `>= 0.10.0` | Adotado como banco persistente OLAP (orientado a colunas) em vez de bancos tradicionais de linha. Processa agregações, ordenações e consultas analíticas de grande porte em milissegundos. |
+| **Visualização de Dados** | **Plotly** `>= 5.18.0` | Utilizada pelo assistente para gerar gráficos vetoriais interativos e dinâmicos (Plotly Express) diretamente no navegador do usuário. |
+| **Manipulação de Dados** | **Pandas** `>= 2.0.0` | Funciona como uma ponte de memória de alta velocidade entre arquivos descompactados e a importação no DuckDB, permitindo pré-processamentos e formatações locais eficientes. |
+| **Observabilidade** | **LangSmith** | Permite o rastreio (tracing) completo de execuções de nós, consumo de tokens e comportamento detalhado dos prompts e do LLM. |
 
 ---
 
@@ -59,21 +76,19 @@ O sistema adota o padrão de arquitetura **Supervisor-Worker (Hierárquico)** op
 
 ### Detalhamento do Fluxo de Execução
 
-*   **Validação Local de Entrada (Filtro de Segurança):** Antes de iniciar o grafo de estados ou consumir qualquer token da API do Gemini, o sistema executa uma validação determinística de segurança. Se a pergunta for considerada fora do contexto (como sequências de letras aleatórias), o sistema retorna de imediato um estado de orientação amigável impresso no balão de chat do assistente.
-    
-*   **Supervisor Node (Orquestrador):** Se o input for válido, o Supervisor avalia o pedido do usuário e o esquema do banco, decidindo se o fluxo deve passar para a análise de dados (`analyze`) ou ir direto para a síntese conversacional (`synthesize`).
-    
-*   **Analyst Node (Consultas Analíticas):** Formula e executa queries SQL otimizadas diretamente na base de dados do DuckDB, estruturando o resultado em um DataFrame do Pandas.
-    
-*   **Chart Node (Visualização Estética):** Caso o usuário tenha solicitado uma representação gráfica (detectado de forma autônoma pela aresta de saída do Analista), este nó é acionado. Ele escolhe os eixos e o tipo de gráfico ideal (barras, linhas, pizza, dispersão), gerando uma figura interativa do Plotly Express.
-    
-*   **Synthesizer Node (Análise de Negócios):** Conecta a tabela Markdown de resultados, a explicação técnica e o dicionário de dados para gerar uma resposta final de negócios polida, sem jargões ou termos técnicos.
+*   **Validação Local de Entrada (Filtro de Segurança):** Antes de iniciar o grafo ou gastar tokens com chamadas ao modelo, o sistema roda uma validação determinística na query (tamanho menor que 3 caracteres, ausência de palavras legíveis ou falta de palavras do vocabulário físico do esquema). Em caso de falha, responde imediatamente orientando o usuário.
+*   **Roteamento por Cache Local:** Se a mesma pergunta exata em linguagem natural for feita novamente na sessão, o sistema recupera a query SQL e a explicação salvas no cache interno. O banco é reconsultado e o gráfico Plotly é remontado sem fazer chamadas à API do Gemini (0 tokens gastos e latência quase nula).
+*   **Supervisor Node (Orquestrador):** Se houver um cache miss, o Supervisor avalia o pedido e o dicionário de dados para decidir a rota: análise quantitativa (`analyze`) ou síntese direta (`synthesize`) para mensagens conceituais ou informais.
+*   **Analyst Node (Consultas Analíticas):** Escreve queries SQL DuckDB limpas (sem blocos markdown). Uma ferramenta de execução executa a query e valida previamente os comandos contra manipulações destrutivas de dados (bloqueio de `DROP`, `DELETE`, `UPDATE`, etc.). Para evitar erros de limites de chamadas (Rate Limit / Erro 429), este nó adota um delay preventivo automático de `1.2` segundos.
+*   **Roteador Secundário de Gráficos (Chart Node):** Após a execução da consulta SQL pelo Analista, o sistema verifica a presença de palavras-chave associadas a gráficos (`"gráfico"`, `"plot"`, `"barras"`, etc.). Se detectado, aciona de forma autônoma o **Chart Node**, que define o melhor tipo de gráfico e parâmetros, executando a ferramenta `create_chart_tool` para construir a figura interativa Plotly.
+*   **Synthesizer Node (Análise de Negócios):** Consome a tabela em formato Markdown com os dados obtidos e o dicionário de dados associado para construir uma narrativa analítica em português sob medida para usuários corporativos, ocultando jargões de programação ou de infraestrutura de banco de dados.
 
 ---
 
 ## 📁 Estrutura de Pastas e Arquivos do Projeto
+
 ```text
-data-analyst-agent/
+data_analytics_agent/
 │
 ├── database/                  # Armazena o banco físico persistente do DuckDB (data.duckdb)
 ├── extracted/                 # Rascunho físico para descompactação dos CSVs do ZIP
@@ -105,10 +120,12 @@ data-analyst-agent/
     │   └── prompts.py         # Armazena todos os System Prompts dos nós especialistas
     │
     ├── services/
-    │   ├── csv_service.py     # Validador de cabeçalhos e carregador físico do DuckDB via Pandas
-    │   ├── data_dict_service.py # Parser dinâmico de dicionário JSON via csv.DictReader
-    │   ├── ingestion_service.py # Orquestrador lógico do pipeline de dados (ETL)
-    │   └── zip_service.py     # Serviço utilitário de extração física de arquivos ZIP
+    │   ├── analysis_service.py   # Análise preliminar das tabelas e geração de estatísticas por coluna
+    │   ├── csv_service.py        # Validador de cabeçalhos e carregador físico do DuckDB via Pandas
+    │   ├── data_dict_service.py  # Parser dinâmico de dicionário de dados CSV em dicionário Python
+    │   ├── ingestion_service.py  # Orquestrador lógico do pipeline de dados (ETL)
+    │   ├── query_service.py      # Serviço de validação local, controle de cache e execução de perguntas
+    │   └── zip_service.py        # Serviço utilitário de extração física de arquivos ZIP
     │
     ├── tools/
     │   └── tools.py           # Ferramentas técnicas de uso do grafo (consultas e gráficos)
@@ -126,9 +143,7 @@ Este tópico descreve detalhadamente o papel de cada pasta e arquivo do reposit�
 Estas pastas residem na raiz do projeto e gerenciam a persistência e o isolamento físico de arquivos durante a execução:
 
 *   **`database/`**: Armazena o arquivo de banco de dados físico ativo do DuckDB (`data.duckdb`). Como o banco é persistido localmente e não apenas em memória, essa pasta permite a carga cumulativa de múltiplos uploads ao longo de uma sessão.
-
 *   **`uploads/`**: Funciona como diretório de retenção temporária do arquivo compactado `payload.zip` enviado ativamente pelo usuário.
-
 *   **`extracted/`**: Diretório de rascunho de disco. É o local físico onde os arquivos CSV e dicionários de dados são descompactados pelo sistema para sofrerem os processos de validação e leitura estruturada antes de serem inseridos no banco de dados.
 
 2\. **Pacote Principal do Código-Fonte (`src/`)**
@@ -137,13 +152,13 @@ Estas pastas residem na raiz do projeto e gerenciam a persistência e o isolamen
 
 Responsável pelas decisões lógicas baseadas em IA que dependem das chamadas de API do Gemini.
 
-* **`agents_nodes.py`**: Contém a classe GraphNodes. Centraliza os métodos de instância dos nós do grafo (`supervisor_node`, `analyst_node`, `chart_node`, `synthesis_node`). Cada nó possui uma persona própria de IA e regras específicas de processamento que lêem o estado do grafo e o atualizam.
+* **`agents_nodes.py`**: Contém a classe `GraphNodes`. Centraliza os métodos de instância dos nós do grafo (`supervisor_node`, `analyst_node`, `chart_node`, `synthesis_node`). Cada nó possui uma persona própria de IA e regras específicas de processamento que lêem o estado do grafo e o atualizam.
 
 🖥️ **`src/app/`** **(Camada de Apresentação / View)**
 
 Gerencia a interface gráfica interativa do usuário.
 
-* **`app.py`**: Contém a classe principal StreamlitApp. Ela renderiza o cabeçalho, a barra lateral de uploads cumulativos (Interface A) e a interface de chat de consultas (Interface B). É o único arquivo que interage com o Streamlit, consumindo os dicionários de dados gerados pelos serviços e os estados finais entregues pelo Orquestrador do Grafo.
+* **`app.py`**: Contém a classe principal `StreamlitApp`. Ela renderiza o cabeçalho, a barra lateral de uploads cumulativos e redefinições (Interface A) e a interface de abas para chat analítico, visualização de dicionários e estatísticas descritivas (Interface B). É o único arquivo que interage com o Streamlit.
 
 🗄️ **`src/db_manager/`** **(Infraestrutura de Banco de Dados)**
 
@@ -155,9 +170,8 @@ Camada isolada responsável por gerenciar a comunicação de leitura/escrita fí
 
 Responsável por montar o grafo e definir o fluxo lógico da informação.
 
-* **`builder.py`**: Contém a classe WorkflowGraphBuilder. Define os nós do grafo utilizando os métodos de instância de `GraphNodes`, conecta as arestas lógicas sequenciais e define as arestas condicionais (routers), compilando a topologia final do grafo de estados de forma robusta.
-
-* **`orchestrator.py`**: É o ponto de entrada da lógica de inteligência artificial. Contém a função `run_orchestrator_graph()`, que recebe as perguntas do usuário, realiza a validação semântica de segurança, monta o estado inicial de dados (`AgentState`) e dispara a execução do grafo de forma síncrona, retornando os resultados finais.
+* **`builder.py`**: Contém a classe `WorkflowGraphBuilder`. Define os nós do grafo utilizando os métodos de instância de `GraphNodes`, conecta as arestas lógicas sequenciais e define as arestas condicionais (routers), compilando a topologia final do grafo de estados de forma robusta.
+* **`orchestrator.py`**: Ponto de inicialização e execução do grafo de estados a partir do LangGraph.
 
 💾 **`src/memory/`** **(Gerenciador de Estado do Chat)**
 
@@ -165,96 +179,73 @@ Responsável por montar o grafo e definir o fluxo lógico da informação.
 
 📊 **`src/models/`** **(Modelos e Contratos de Dados)**
 
-* **`state_model.py`**: Define a classe `AgentState` baseada em `TypedDict`. Esse modelo é o contrato de dados oficial do sistema. Ele define de forma rígida quais variáveis (query do usuário, schema do banco, queries SQL, DataFrames Pandas, figuras do Plotly, explicações de negócios e logs de auditoria) trafegam de nó em nó ao longo do processamento do grafo.
+* **`state_model.py`**: Define a classe `AgentState` baseada em `TypedDict`. Esse modelo é o contrato de dados oficial do sistema. Ele define de forma rígida quais variáveis (query do usuário, schema do banco, queries SQL, DataFrames Pandas, figuras do Plotly, explicações de negócios e logs de execução) trafegam ao longo do grafo.
 
 📝 **`src/prompts/`** **(Central de Instruções de IA)**
 
-* **`prompts.py`**: Isola todos os templates de instruções textuais dos agentes de IA do código Python lógico do sistema. Armazena as diretrizes e regras rígidas aplicadas ao Supervisor (incluindo a proibição absoluta de fazer cálculos manuais), o prompt do analista SQL, o do criador de gráficos e a síntese final do analista de negócios.
+* **`prompts.py`**: Isola todos os templates de instruções textuais dos agentes de IA do código Python lógico do sistema. Armazena as diretrizes e regras rígidas aplicadas ao Supervisor, Analista SQL, Criador de Gráficos e Síntese analítica.
 
 ⚙️ **`src/services/`** **(Serviços Determinísticos)**
 
 Camada de serviços clássicos de programação que **não** necessitam de IA cognitiva para operar.
 
-* **`zip_service.py`**: Descompacta o arquivo payload.zip extraindo fisicamente os arquivos de dados na pasta `extracted/`.
-
-* **`csv_service.py`**: Contém a lógica de tratamento de dados analíticos. Utiliza a função de varredura `_detect_csv_properties` para descobrir estatisticamente o separador e o encoding corretos do arquivo usando o `csv.Sniffer` nativo. Em seguida, lê os arquivos com Pandas (corrigindo formatações decimais brasileiras de vírgulas para pontos com decimal=",") e os grava nas tabelas físicas do DuckDB em memória sem perdas de decodificação.
-
-* **`data_dict_service.py`**: Processa de forma determinística dicionários de dados salvos no formato CSV utilizando o `csv.DictReader`. Higieniza espaços em branco e extrai as N colunas extras de metadados para construir o dicionário de suporte do sistema.
-
-* **`ingestion_service.py`**: Classe coordenadora do pipeline de ETL (Extração, Transformação e Carga). Aciona em lote os serviços de descompactação, parser de dicionário e gravação das tabelas no DuckDB.
+* **`analysis_service.py`**: Contém o `PreliminaryAnalysisService` que gera amostras de dados e perfis descritivos inteligentes por coluna baseados em regras e tipos de dados estatísticos (numéricas, monetárias, categóricas, etc.).
+* **`csv_service.py`**: Contém a lógica de tratamento de dados analíticos. Descobre estatisticamente o separador e o encoding corretos de arquivos usando o `csv.Sniffer` nativo. Lê arquivos via Pandas corrigindo decodificações e formatos decimais (vírgula brasileira para ponto) e os insere no DuckDB.
+* **`data_dict_service.py`**: Mapeia e traduz o dicionário de dados CSV enviado no ZIP de forma totalmente dinâmica, gerando o suporte conceitual às colunas para os prompts das LLMs.
+* **`ingestion_service.py`**: Orquestrador lógico do pipeline de ETL de dados (extração de arquivos ZIP, parsing do dicionário e carga física das tabelas no DuckDB).
+* **`query_service.py`**: Coordena o recebimento das perguntas, faz validações de entrada preventivas locais, gerencia o cache e dispara a execução do grafo de agentes do LangGraph, retornando os estados atualizados.
+* **`zip_service.py`**: Descompacta fisicamente os arquivos ZIP na pasta temporária.
 
 🧰 **`src/tools/`** **(Ações Práticas dos Agentes)**
 
-* **`tools.py`**: Biblioteca de ferramentas acionadas pelos nós do LangGraph. Contém a ferramenta de execução de queries SQL no DuckDB e o montador de gráficos interativos em Plotly Express (`create_chart_tool`), que padroniza os títulos e eixos com base nas melhores práticas de Data Viz.
+* **`tools.py`**: Contém as ferramentas executáveis pelo LangGraph: consulta segura ao DuckDB (`query_duckdb_tool`) e plotador interativo de gráficos (`create_chart_tool`).
 
 🛠️ **`src/utils/`** **(Utilitários Globais do Sistema)**
 
-* **`utils.py`**: Arquivo unificado que centraliza de forma limpa as funções utilitárias que atendem a várias camadas do sistema:
-
-    1. **`setup_logger`**: Configura e padroniza o monitoramento de logs do console do servidor.
-
-    2. **`sanitize_table_name`**: Higieniza nomes físicos de arquivos para chaves de tabelas compatíveis com SQL.
-
-    3. **`sanitize_column_name`**: Normaliza e converte nomes de colunas complexas de arquivos CSV em identificadores amigáveis no padrão snake_case em ASCII puro.
-
-    4. **`validate_user_query`**: Executa o algoritmo de validação determinística de perguntas com base em vocabulário dinâmico.
-
-    5. **`reset_application_storage`**: Realiza a exclusão e o expurgo físico de segurança de arquivos e bancos temporários do disco.
-
----
-
-## 🛠️ Tecnologias Utilizadas e Justificativa Analítica
-
-*   **DuckDB:** Adotado como motor de persistência analítica (OLAP) em substituição ao SQLite. Sendo columnar, processa agregações e agrupamentos de forma imensamente mais veloz.
-    
-*   **LangGraph:** Utilizado para compilar o workflow de agentes. Fornece controle de estado unificado (AgentState) e previne loops infinitos de chamadas à LLM comuns em orquestradores tradicionais.
-    
-*   **Google Gemini (gemini-2.5-flash):** Modelo de última geração otimizado para baixíssima latência, excelente raciocínio lógico-matemático e suporte nativo à geração de estruturas JSON estáveis.
-    
-*   **Streamlit:** Framework de interface web que permite construir interfaces interativas rapidamente em Python.
-    
-*   **Plotly Express:** Biblioteca de visualização que gera gráficos dinâmicos altamente responsivos e personalizáveis na tela
+* **`utils.py`**: Centraliza funções utilitárias do sistema como inicializador de logger, normalizador de strings unicode NFC/NFD, higienizadores de nomes de tabelas/colunas para `snake_case` ASCII e o reset físico de armazenamento do disco.
 
 ---
 
 ## ⚙️ Diferenciais de Engenharia de Dados Aplicados no Projeto
 
-### 1\. Ingestão Cumulativa com "Absorção" na UI
+### 1. Ingestão Cumulativa com "Absorção" na UI
+O componente de upload de arquivos (`file_uploader`) funciona como uma "zona de drop" temporária. Ao arrastar um novo ZIP, o sistema executa a carga, funde o dicionário de dados de forma cumulativa com o existente (usando `.update()`), registra o nome do arquivo em um conjunto de bases ativas e limpa o uploader imediatamente da tela utilizando o padrão de **Chaves Dinâmicas** do Streamlit. Isso evita o bug clássico de inconsistência ao tentar remover arquivos manualmente.
 
-O componente de upload de arquivos (`file\_uploader`) funciona como uma "zona de drop" temporária. Ao arrastar um novo ZIP, o sistema executa a carga, funde o dicionário de dados de forma cumulativa com o existente (usando `.update()`), registra o nome do arquivo em um conjunto de bases ativas e limpa o uploader imediatamente da tela utilizando o padrão de **Chaves Dinâmicas** do Streamlit. Isso evita o bug clássico de inconsistência ao tentar remover arquivos manualmente.
+### 2. Tratamento de Encodings e Delimitadores Nacionais
+Para contornar as limitações do leitor padrão de CSV do DuckDB (que falha ao ler arquivos não-UTF-8 ou com delimitadores `;`), a ingestão foi reescrita utilizando o **Pandas como ponte de memória**. O sistema executa uma varredura utilizando o **csv.Sniffer nativo do Python** para descobrir estatisticamente o separador e o encoding corretos. Em seguida, o Pandas lê o arquivo físico e o registra na memória do DuckDB utilizando o mecanismo **Zero-Copy (`conn.register`)**, o que garante uma carga instantânea e 100% imune a falhas de decodificação.
 
-### 2\. Tratamento de Encodings e Delimitadores Nacionais
+### 3. Sanitização Radical de Cabeçalhos contra Espaços Ocultos e Unicode Normalization (NFC/NFD)
+Os arquivos CSV frequentemente contêm caracteres invisíveis (*Non-Breaking Space* - `\xa0`) ou acentuações salvas em formato decomposto (NFD). O sistema trata isso aplicando normalização unicode **NFC** e limpando todos os espaçamentos especiais nos nomes das colunas e das tabelas físicas salvos no DuckDB. Isso garante compatibilidade total com as queries geradas pelo Gemini.
 
-Para contornar as limitações do leitor padrão de CSV do DuckDB (que falha ao ler arquivos não-UTF-8 ou com delimitadores ;), a ingestão foi reescrita utilizando o **Pandas como ponte de memória**. O sistema executa uma varredura utilizando o **csv.Sniffer nativo do Python** para descobrir estatisticamente o separador e o encoding corretos. Em seguida, o Pandas lê o arquivo físico e o registra na memória do DuckDB utilizando o mecanismo **Zero-Copy (`conn.register`)**, o que garante uma carga instantânea e 100% imune a falhas de decodificação.
+### 4. Análise Preliminar Dinâmica por Tipo de Dados (ColumnProfiler)
+O sistema analisa dinamicamente cada tabela carregada classificando colunas em tipos analíticos específicos (`numerica`, `monetaria`, `categorica`, `data`, `identificador`, `texto_livre`). Com base na classificação, estatísticas descritivas estruturadas são apresentadas automaticamente na interface Streamlit (médias/mediana de valores, evolução temporal agregada por trimestre, ocorrência percentual de dados categóricos e identificadores protegidos contra agregações), gerando insights instantâneos sem consumo de tokens da API de IA.
 
-### 3\. Sanitização Radical de Cabeçalhos contra Espaços Ocultos e Unicode Normalization (NFC/NFD)
-
-Os arquivos CSV frequentemente contêm caracteres invisíveis (_Non-Breaking Space_ - `\\xa0`) ou acentuações salvas em formato decomposto (NFD). O sistema trata isso aplicando normalização unicode **NFC** e limpando todos os espaçamentos especiais nos nomes das colunas e das tabelas físicas salvos no DuckDB. Isso garante compatibilidade total com as queries geradas pelo Gemini.
+---
 
 ## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
 
 *  Python 3.9 ou superior.
-    
-*  Variável de ambiente com a chave de API do Gemini configurada: `GOOGLE\_API\_KEY`.
-    
+*  Variável de ambiente com a chave de API do Gemini configurada: `GOOGLE_API_KEY`.
 
 ### Instalação
 
 1.  **Clone o repositório:**
 
 ```bash
-git clone https://github.com/seu-usuario/data-analyst-agent.git
-
-cd data-analyst-agent
+git clone https://github.com/rodrigomdc/data_analytics_agent.git
+cd data_analytics_agent
 ```
 
 2. **Crie e ative um ambiente virtual:**
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+# No Linux/macOS:
+source .venv/bin/activate  
+# No Windows:
+.venv\Scripts\activate
 ```
 
 3. **Instale as dependências:**
@@ -274,12 +265,11 @@ GOOGLE_API_KEY="sua_chave_api_gemini_aqui"
 ```bash
 streamlit run main.py
 ```
+
 ---
 
 ## 💡 Como Usar
 
-*   **Interface A (Carga):** Faça o upload de um arquivo ZIP contendo um ou mais arquivos CSV e o seu dicionário de dados de formato CSV. O sistema fará a leitura e listará na barra lateral as bases que estão ativas na memória. Você pode adicionar mais arquivos de forma cumulativa.
-    
-*   **Interface B (Consulta):** No console do chat, digite sua dúvida comercial em linguagem natural. O orquestrador gerenciará as chamadas dos subagentes e retornará a resposta explicativa acompanhada do gráfico e das tabelas brutas correspondentes.
-    
-*   **Iniciar Nova Análise:** Clique no botão de redefinição na barra lateral para apagar fisicamente todos os arquivos temporários, destruir as instâncias do banco DuckDB locais do disco, limpar o histórico de conversas do chat e retornar a interface ao estado inicial de carregamento limpo.
+*   **Interface A (Carga e Perfil):** Faça o upload de um arquivo ZIP contendo um ou mais arquivos CSV e o seu dicionário de dados de formato CSV. O sistema fará a leitura e listará na barra lateral as bases que estão ativas na memória. Você pode adicionar mais arquivos de forma cumulativa. Além disso, as abas centrais de **Metadados** e **Perfil dos Dados** mostram o dicionário decodificado e a análise estatística preliminar gerada pelo sistema.
+*   **Interface B (Consulta / Chat):** No console da aba principal de **Chat com Agente**, digite sua dúvida comercial em linguagem natural. O orquestrador gerenciará as chamadas dos subagentes e retornará a resposta explicativa acompanhada do gráfico e das tabelas brutas correspondentes.
+*   **Iniciar Nova Análise:** Clique no botão "🧹 Iniciar Nova Análise" na barra lateral para apagar fisicamente todos os arquivos temporários, destruir as instâncias do banco DuckDB locais do disco, limpar o histórico de conversas do chat e retornar a interface ao estado inicial de carregamento limpo.
